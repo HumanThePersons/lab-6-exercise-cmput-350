@@ -146,6 +146,37 @@ void MandelbrotViewer::handleZoom(double scrollDistance, sf::Vector2i mousePosit
     // In particular, the new world-coordinates rectangle will be of size
     // (worldViewFactor * (orig world width), worldViewFactor * (orig world height)),
     // and the user's cursor will point to exactly the same thing before and after the zoom.
+
+    // Get window x and y
+    float xWindow = mWindow.getSize().x;
+    float yWindow = mWindow.getSize().y;
+
+    sf::Vector2<double> mousePos = static_cast<sf::Vector2<double>>(mousePosition);
+
+    // repalce viewport size with windowsize
+    // 2) mouse position relative to the window as a percentage
+    sf::Vector2 mousePosPercentage = sf::Vector2<double>(
+        mousePos.x / mWindow.getSize().x, 1 - (mousePos.y / mWindow.getSize().y));
+    // the y value is found as 1 - y because the percentage of the window from the top corresponds
+    // to percentage of the rendered world points from the
+
+    // 3) Mouse relative to the rendered world in world points
+    sf::Vector2<double> mousePosRelativeWorld = {mousePosPercentage * (mMaxPointWorld - mMinPointWorld)};
+
+    // Zooms in right on the cursor
+    sf::Vector2<double> zoomedWorldSize = (mMaxPointWorld - mMinPointWorld) / worldViewFactor;
+    mMinPointWorld = mousePos - (zoomedWorldSize / sf::Vector2<double>(2.0f, 2.0f));
+    mMaxPointWorld = mousePos + (zoomedWorldSize / sf::Vector2<double>(2.0f, 2.0f));
+
+    // Center of screen in world coordinates:
+    sf::Vector2<double> center = mMinPointWorld + zoomedWorldSize / sf::Vector2<double>(2.0f, 2.0f);
+
+    // Now shift everything over a lil bit so that the cursor is where it is supposed to be
+    // Gets position of where cursor should be (currently at center)
+    sf::Vector2<double> cursorPosition = mousePosRelativeWorld * zoomedWorldSize;
+    sf::Vector2<double> cursorDelta = center - cursorPosition;
+    mMinPointWorld += cursorDelta;
+    mMaxPointWorld += cursorDelta;
 }
 
 void MandelbrotViewer::handleWindowResize(sf::Vector2u newSize)  // newSize is in window coords.
@@ -201,7 +232,28 @@ double MandelbrotViewer::mandelbrot(double cX, double cY, int maxIters) const {
     // TODO: return the number of iterations it takes for z to escape a radius of 2,
     //       if it happens within maxIters iterations, otherwise return infinity.
 
-    return std::numeric_limits<double>::infinity();  // get rid of this and add your code here...
+    sf::Vector2<double> z = sf::Vector2<double>(0, 0);
+    sf::Vector2<double> zPrime = sf::Vector2<double>(0, 0);
+
+    for (int currIter = 0; currIter < maxIters; currIter++){
+        // Find zPrime as z^2 + c
+        // My calcluations!! : z^2 = (x^2 - y^2), 2xyi
+        zPrime = sf::Vector2(z.x*2 - z.y*2, 2*z.x*z.y) + sf::Vector2<double>(cX, cY);
+
+        // if x^2 + y^2 exceeds 4, then the norm exceeds 2
+        double modulusSquared = (zPrime.x * zPrime.x) + (zPrime.y * zPrime.y);
+
+        if (modulusSquared > 4) {
+            // return escape time
+            return currIter + 1;  // Have to add 1 since im using iter = 0 to be the first iteration
+        }
+
+        // The point is in the set, set previous z (z) to the new z (zPrime)
+        z = zPrime;
+    }
+
+     // if maxIters was exceeded, then we can return infinity
+    return std::numeric_limits<double>::infinity();
 }
 
 double MandelbrotViewer::mandelbrotSmooth(double cX, double cY, int maxIters) const {
@@ -219,7 +271,18 @@ sf::Vector2<double> MandelbrotViewer::windowPosToWorld(const sf::Vector2<double>
     //       the caller will have to cast to sf::Vector2<double>), convert them into world
     //       coordinates in the context of the current world view.
 
-    return {};
+    // in the context of the current world view
+    // pWindow as percents of the window
+    sf::Vector2<double> pWindowPercent = sf::Vector2<double>(pWindow / static_cast<sf::Vector2<double>>(mWindow.getSize()));
+    
+    // Flip y value in pWindow percent -> 0.20 from the bottom = 0.80 from the top
+    pWindowPercent = sf::Vector2<double>(pWindowPercent.x, 1 - pWindowPercent.y);
+
+    // Gets the size of the world currently rendered to use as a scale
+    sf::Vector2<double> renderedWorldSize = mMaxPointWorld - mMinPointWorld;
+
+    // gets point as a percent of the rendered window times the size of the rendered world coordinates
+    return sf::Vector2<double>(pWindowPercent * renderedWorldSize);
 }
 
 // drawIntoBuffer renders the current world view (bounded by mMinPointWorld and mMaxPointWorld)
@@ -239,6 +302,7 @@ void MandelbrotViewer::drawIntoViewBuffer(int maxIters) {
 void MandelbrotViewer::copyViewBufferToGPU() {
     // TODO: load mViewBuffer from the CPU into mViewBufferGPU on the GPU.
     // Hint: this is a one-liner.
+    bool worked = mViewBufferGPU.loadFromImage(mViewBuffer);  // I get a warning for discarding the bool
 }
 
 // draw clears the window, draws the view, as well as the text with its shadow underneath
