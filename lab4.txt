@@ -1,1 +1,10 @@
 Answer written questions here:
+
+#### Question 1
+Everytime the mandlebrot function is called it has to go through each pixel, and as maxIters increases, so does the time it takes for each pixels to run. This means that using the smaller maxIters saves some time and thus responsiveness, to make zooming / panning cleaner. Then when the user is looking at a still image, we can use the 3200 maxIters for a more accurate view of the set
+
+#### Question 2 
+Instead of just doing each pixel, we could group the pixels into smaller sections, maybe by rows or columns, and then have multiple computers compute each row or each pixel in a row (depending on implementation) and have the original computer that split the pixels into groups collect them back together and pass it into viewBuffer.
+
+#### Question 3
+It would become smoother and make the noise look more like a gradient, but would also mean that the computation time would go up, since 4x the number of pixel spots need to be computed, four for each pixel. Assuming we used some sort of optimization like in question 2 though this extra computation time could be managable.
